@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>محاسبة السيراميك</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.6.7/axios.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',Tahoma,Arial,sans-serif;background:#f0f4f8;color:#1a202c;min-height:100vh;direction:rtl}
+
+/* ── SETUP SCREEN ── */
+#setup-screen{position:fixed;inset:0;background:linear-gradient(135deg,#1a202c,#2d3748);display:flex;align-items:center;justify-content:center;z-index:999;padding:20px}
+.setup-box{background:#fff;border-radius:20px;padding:36px;width:480px;max-width:100%;box-shadow:0 20px 60px rgba(0,0,0,.4)}
+.setup-box h2{font-size:22px;font-weight:700;color:#2d3748;margin-bottom:6px;text-align:center}
+.setup-box p{font-size:13px;color:#718096;text-align:center;margin-bottom:24px}
+.setup-box .logo{font-size:48px;text-align:center;margin-bottom:12px}
+.setup-field{margin-bottom:14px}
+.setup-field label{display:block;font-size:13px;font-weight:500;color:#4a5568;margin-bottom:5px}
+.setup-field input{width:100%;padding:11px 14px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:13px;outline:none;direction:ltr;text-align:left}
+.setup-field input:focus{border-color:#4299e1}
+.setup-btn{width:100%;padding:12px;background:linear-gradient(135deg,#3182ce,#2b6cb0);color:#fff;border:none;border-radius:9px;font-size:15px;font-weight:600;cursor:pointer;margin-top:6px}
+.setup-btn:hover{opacity:.9}
+.setup-note{font-size:11px;color:#a0aec0;text-align:center;margin-top:14px;line-height:1.6}
+
+/* ── LOGIN SCREEN ── */
+#login-screen{position:fixed;inset:0;background:linear-gradient(135deg,#1a202c 0%,#2d3748 50%,#1a365d 100%);display:none;align-items:center;justify-content:center;z-index:998;padding:20px}
+#login-screen.show{display:flex}
+.login-box{background:#fff;border-radius:20px;padding:40px;width:420px;max-width:100%;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.login-logo{font-size:52px;text-align:center;margin-bottom:8px}
+.login-title{font-size:24px;font-weight:700;text-align:center;color:#2d3748;margin-bottom:4px}
+.login-sub{font-size:13px;color:#718096;text-align:center;margin-bottom:28px}
+.login-tabs{display:flex;background:#f7fafc;border-radius:10px;padding:4px;margin-bottom:22px;gap:4px}
+.login-tab{flex:1;padding:9px;border:none;background:none;border-radius:8px;font-size:14px;font-weight:500;color:#718096;cursor:pointer;transition:.2s}
+.login-tab.active{background:#fff;color:#2b6cb0;box-shadow:0 1px 4px rgba(0,0,0,.1)}
+.lf{margin-bottom:14px}
+.lf label{display:block;font-size:13px;font-weight:500;color:#4a5568;margin-bottom:5px}
+.lf input{width:100%;padding:11px 14px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:14px;outline:none;transition:.2s}
+.lf input:focus{border-color:#4299e1;box-shadow:0 0 0 3px rgba(66,153,225,.12)}
+.login-btn{width:100%;padding:13px;background:linear-gradient(135deg,#3182ce,#2b6cb0);color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;margin-top:6px;transition:.2s}
+.login-btn:hover{opacity:.9}
+.login-btn:disabled{opacity:.6;cursor:not-allowed}
+#login-msg{font-size:13px;text-align:center;margin-top:12px;padding:10px;border-radius:8px;display:none}
+#login-msg.err{background:#fed7d7;color:#9b2c2c;display:block}
+#login-msg.ok{background:#c6f6d5;color:#276749;display:block}
+
+/* ── APP ── */
+.app{display:none;flex-direction:column;min-height:100vh}
+.app.show{display:flex}
+header{background:linear-gradient(135deg,#2d3748,#1a365d);color:#fff;padding:14px 24px;display:flex;align-items:center;gap:12px;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+header h1{font-size:20px;font-weight:700}
+.header-right{margin-right:auto;display:flex;align-items:center;gap:12px}
+.user-badge{background:rgba(255,255,255,.15);padding:6px 12px;border-radius:99px;font-size:13px;display:flex;align-items:center;gap:6px}
+.logout-btn{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:#fff;padding:6px 12px;border-radius:8px;cursor:pointer;font-size:12px;transition:.2s}
+.logout-btn:hover{background:rgba(255,255,255,.2)}
+nav{display:flex;background:#fff;border-bottom:1px solid #e2e8f0;padding:0 20px;gap:2px;overflow-x:auto}
+nav button{padding:13px 16px;border:none;background:none;cursor:pointer;font-size:13px;font-weight:500;color:#718096;border-bottom:3px solid transparent;transition:.2s;white-space:nowrap}
+nav button.active{color:#2b6cb0;border-bottom-color:#2b6cb0}
+nav button:hover:not(.active){color:#4a5568;background:#f7fafc}
+main{flex:1;padding:20px;max-width:1200px;margin:0 auto;width:100%}
+
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(185px,1fr));gap:14px;margin-bottom:24px}
+.stat-card{background:#fff;border-radius:12px;padding:18px;border-right:4px solid #4299e1;box-shadow:0 1px 4px rgba(0,0,0,.07)}
+.stat-card.green{border-right-color:#48bb78}
+.stat-card.orange{border-right-color:#ed8936}
+.stat-card.red{border-right-color:#fc8181}
+.stat-label{font-size:11px;color:#718096;margin-bottom:5px;text-transform:uppercase;letter-spacing:.3px}
+.stat-value{font-size:24px;font-weight:700;color:#2d3748}
+.stat-sub{font-size:11px;color:#a0aec0;margin-top:3px}
+
+.table-wrap{background:#fff;border-radius:12px;box-shadow:0 1px 4px rgba(0,0,0,.07);overflow:hidden}
+.table-header{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid #e2e8f0;flex-wrap:wrap;gap:8px}
+.table-header h2{font-size:15px;font-weight:600;color:#2d3748}
+table{width:100%;border-collapse:collapse}
+th{background:#f7fafc;font-size:11px;color:#718096;padding:9px 14px;text-align:right;border-bottom:1px solid #e2e8f0}
+td{padding:10px 14px;border-bottom:1px solid #f0f4f8;font-size:13px;vertical-align:middle;text-align:right}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#f7fafc}
+.td-img{width:44px;height:44px;border-radius:7px;object-fit:cover}
+.td-ph{width:44px;height:44px;border-radius:7px;background:#e2e8f0;display:inline-flex;align-items:center;justify-content:center;font-size:20px}
+
+.badge{display:inline-block;padding:2px 8px;border-radius:99px;font-size:11px;font-weight:500}
+.badge-ok{background:#c6f6d5;color:#276749}
+.badge-low{background:#feebc8;color:#c05621}
+.badge-critical{background:#fed7d7;color:#9b2c2c;animation:pulse 1.5s infinite}
+.badge-admin{background:#bee3f8;color:#2c5282}
+.badge-staff{background:#e9d8fd;color:#553c9a}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.6}}
+
+.btn{padding:7px 14px;border-radius:8px;border:none;cursor:pointer;font-size:13px;font-weight:500;transition:.15s}
+.btn-primary{background:#3182ce;color:#fff}.btn-primary:hover{background:#2c5282}
+.btn-success{background:#38a169;color:#fff}.btn-success:hover{background:#276749}
+.btn-danger{background:#e53e3e;color:#fff}.btn-danger:hover{background:#9b2c2c}
+.btn-edit{background:#667eea;color:#fff}.btn-edit:hover{background:#4c51bf}
+.btn-outline{background:#fff;color:#4a5568;border:1px solid #e2e8f0}.btn-outline:hover{background:#f7fafc}
+.btn-sm{padding:5px 10px;font-size:12px}
+
+/* Products grid */
+.products-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:16px}
+.product-card{background:#fff;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,.08);overflow:hidden;transition:.2s;border:2px solid transparent}
+.product-card:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,.12)}
+.product-card.low{border-color:#f6ad55}
+.product-card.critical{border-color:#fc8181}
+.product-img{width:100%;height:150px;object-fit:cover}
+.product-img-ph{width:100%;height:150px;background:linear-gradient(135deg,#e2e8f0,#cbd5e0);display:flex;align-items:center;justify-content:center;font-size:44px;color:#a0aec0}
+.product-info{padding:13px}
+.product-name{font-size:14px;font-weight:600;color:#2d3748;margin-bottom:5px;line-height:1.4}
+.product-price{font-size:12px;color:#3182ce;font-weight:600;margin-bottom:3px}
+.product-stock{font-size:12px;font-weight:600;margin-bottom:10px}
+.product-actions{display:flex;gap:5px}
+.view-toggle{display:flex;gap:5px}
+
+/* Modal */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;align-items:center;justify-content:center;padding:16px}
+.modal-bg.open{display:flex}
+.modal{background:#fff;border-radius:16px;padding:26px;width:500px;max-width:100%;box-shadow:0 8px 32px rgba(0,0,0,.2);max-height:90vh;overflow-y:auto}
+.modal h3{font-size:17px;font-weight:600;margin-bottom:18px;color:#2d3748}
+.fg{margin-bottom:13px}
+.fg label{display:block;font-size:13px;font-weight:500;color:#4a5568;margin-bottom:4px}
+.fg input,.fg select{width:100%;padding:9px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;outline:none;text-align:right;background:#fff}
+.fg input:focus,.fg select:focus{border-color:#4299e1;box-shadow:0 0 0 3px rgba(66,153,225,.12)}
+.modal-btns{display:flex;gap:8px;justify-content:flex-start;margin-top:16px}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+
+/* Image upload */
+.img-upload-area{border:2px dashed #cbd5e0;border-radius:10px;padding:18px;text-align:center;cursor:pointer;transition:.2s;background:#f7fafc;position:relative;overflow:hidden}
+.img-upload-area:hover{border-color:#4299e1;background:#ebf8ff}
+.img-upload-area input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.img-preview{width:100%;height:150px;object-fit:cover;border-radius:8px;display:block;margin-top:8px}
+.img-upload-icon{font-size:28px;margin-bottom:6px}
+.img-upload-txt{font-size:12px;color:#718096}
+
+/* Sales */
+.satis-wrap{background:#fff;border-radius:12px;padding:22px;box-shadow:0 1px 4px rgba(0,0,0,.07);margin-bottom:18px}
+.satis-wrap h2{font-size:15px;font-weight:600;margin-bottom:14px;color:#2d3748}
+.satis-row{display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end}
+.satis-row select{padding:9px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;outline:none;background:#fff}
+.satis-info-card{display:none;margin-top:12px;padding:12px;background:#f7fafc;border-radius:10px;align-items:center;gap:12px}
+.satis-info-card.show{display:flex}
+
+/* History */
+.gecmis-item{display:flex;align-items:center;gap:12px;padding:12px 18px;border-bottom:1px solid #f0f4f8}
+.gecmis-item:last-child{border-bottom:none}
+.g-img{width:42px;height:42px;border-radius:7px;object-fit:cover;flex-shrink:0}
+.g-ph{width:42px;height:42px;border-radius:7px;background:#e2e8f0;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.gecmis-info{flex:1;min-width:0}
+.gecmis-name{font-weight:500;font-size:13px;color:#2d3748}
+.gecmis-meta{font-size:11px;color:#718096;margin-top:1px}
+.gecmis-amount{text-align:left;flex-shrink:0}
+.gecmis-m2{font-size:13px;font-weight:600;color:#e53e3e}
+.gecmis-fiyat{font-size:11px;color:#48bb78;font-weight:500}
+
+/* Users tab */
+.user-card{background:#fff;border-radius:12px;padding:16px 18px;box-shadow:0 1px 4px rgba(0,0,0,.07);display:flex;align-items:center;gap:12px;margin-bottom:10px}
+.user-avatar{width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#667eea,#764ba2);display:flex;align-items:center;justify-content:center;color:#fff;font-size:18px;font-weight:700;flex-shrink:0}
+.user-info{flex:1}
+.user-name{font-weight:600;font-size:14px;color:#2d3748}
+.user-email{font-size:12px;color:#718096}
+
+.alert{background:#fff3cd;border:1px solid #ffc107;color:#856404;border-radius:9px;padding:11px 14px;margin-bottom:11px;display:flex;align-items:center;gap:9px;font-size:13px}
+.empty{text-align:center;padding:36px;color:#a0aec0;font-size:13px}
+.loading{text-align:center;padding:30px;color:#718096;font-size:13px}
+
+/* Spinner */
+.spin{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;margin-left:6px;vertical-align:middle}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<!-- ══ SETUP SCREEN ══ -->
+<div id="setup-screen">
+  <div class="setup-box">
+    <div class="logo">🏺</div>
+    <h2>إعداد قاعدة البيانات</h2>
+    <p>أدخل بيانات Supabase الخاصة بك لربط النظام بقاعدة البيانات</p>
+    <div class="setup-field">
+      <label>Project URL</label>
+      <input type="text" id="sb-url" placeholder="https://xxxxxxxxxxxx.supabase.co">
+    </div>
+    <div class="setup-field">
+      <label>Anon Public Key</label>
+      <input type="text" id="sb-key" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...">
+    </div>
+    <button class="setup-btn" onclick="saveSetup()">💾 حفظ والمتابعة</button>
+    <div class="setup-note">
+      هذه البيانات تُحفظ في متصفحك فقط ولا تُرسل لأي جهة.<br>
+      احصل عليها من: Supabase → Settings → API
+    </div>
+  </div>
+</div>
+
+<!-- ══ LOGIN SCREEN ══ -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">🏺</div>
+    <div class="login-title">محاسبة السيراميك</div>
+    <div class="login-sub">نظام إدارة المخزون والمبيعات</div>
+    <div class="login-tabs">
+      <button class="login-tab active" onclick="switchLoginTab('login')">تسجيل الدخول</button>
+      <button class="login-tab" onclick="switchLoginTab('register')">إنشاء حساب</button>
+    </div>
+    <!-- Login -->
+    <div id="login-form">
+      <div class="lf"><label>البريد الإلكتروني</label><input type="email" id="l-email" placeholder="example@email.com" dir="ltr"></div>
+      <div class="lf"><label>كلمة المرور</label><input type="password" id="l-pass" placeholder="••••••••" dir="ltr" onkeydown="if(event.key==='Enter')doLogin()"></div>
+      <button class="login-btn" onclick="doLogin()" id="login-btn">تسجيل الدخول</button>
+    </div>
+    <!-- Register -->
+    <div id="register-form" style="display:none">
+      <div class="lf"><label>الاسم الكامل</label><input type="text" id="r-name" placeholder="اسمك الكامل"></div>
+      <div class="lf"><label>البريد الإلكتروني</label><input type="email" id="r-email" placeholder="example@email.com" dir="ltr"></div>
+      <div class="lf"><label>كلمة المرور</label><input type="password" id="r-pass" placeholder="8 أحرف على الأقل" dir="ltr"></div>
+      <button class="login-btn" onclick="doRegister()" id="register-btn">إنشاء حساب</button>
+    </div>
+    <div id="login-msg"></div>
+    <div style="text-align:center;margin-top:14px">
+      <button class="btn btn-outline btn-sm" onclick="resetSetup()" style="font-size:11px;color:#a0aec0;border-color:#e2e8f0">⚙️ تغيير إعدادات Supabase</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ APP ══ -->
+<div class="app" id="app">
+  <header>
+    <div style="font-size:26px">🏺</div>
+    <div>
+      <h1>محاسبة السيراميك</h1>
+      <div style="font-size:11px;opacity:.6" id="header-date"></div>
+    </div>
+    <div class="header-right">
+      <div class="user-badge">
+        <span>👤</span>
+        <span id="user-name-display">...</span>
+        <span id="user-role-badge"></span>
+      </div>
+      <button class="logout-btn" onclick="doLogout()">خروج</button>
+    </div>
+  </header>
+
+  <nav>
+    <button class="active" onclick="goTab('dashboard')">📊 الملخص</button>
+    <button onclick="goTab('urunler')">🗂️ المنتجات</button>
+    <button onclick="goTab('satis')">💰 تسجيل بيع</button>
+    <button onclick="goTab('gecmis')">📋 سجل المبيعات</button>
+    <button onclick="goTab('kullanicilar')" id="admin-tab" style="display:none">👥 المستخدمون</button>
+  </nav>
+
+  <main>
+    <!-- DASHBOARD -->
+    <div id="tab-dashboard">
+      <div id="alerts"></div>
+      <div class="stats" id="stats"></div>
+      <div class="table-wrap">
+        <div class="table-header">
+          <h2>حالة المخزون</h2>
+          <button class="btn btn-primary btn-sm" onclick="loadDashboard()">🔄 تحديث</button>
+        </div>
+        <table><thead><tr><th>صورة</th><th>اسم المنتج</th><th>السعر</th><th>المخزون</th><th>الحالة</th></tr></thead>
+        <tbody id="dashboard-table"><tr><td colspan="5" class="loading">⏳ جاري التحميل...</td></tr></tbody></table>
+      </div>
+    </div>
+
+    <!-- ÜRÜNLER -->
+    <div id="tab-urunler" style="display:none">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+        <div class="view-toggle">
+          <button class="btn btn-primary btn-sm" id="view-grid" onclick="setView('grid')">⊞ بطاقات</button>
+          <button class="btn btn-outline btn-sm" id="view-list" onclick="setView('list')">☰ قائمة</button>
+        </div>
+        <button class="btn btn-primary" onclick="openModal()">+ إضافة منتج</button>
+      </div>
+      <div id="urun-grid" class="products-grid"></div>
+      <div id="urun-list-wrap" class="table-wrap" style="display:none">
+        <table><thead><tr><th>صورة</th><th>اسم المنتج</th><th>السعر</th><th>المخزون</th><th>حد التنبيه</th><th>الحالة</th><th>إجراءات</th></tr></thead>
+        <tbody id="urun-table"></tbody></table>
+      </div>
+    </div>
+
+    <!-- SATIŞ -->
+    <div id="tab-satis" style="display:none">
+      <div class="satis-wrap">
+        <h2>تسجيل عملية بيع</h2>
+        <div class="satis-row">
+          <div class="fg" style="margin:0"><label>اختر المنتج</label>
+            <select id="satis-urun" onchange="satisUrunSec()"><option value="">-- اختر --</option></select>
+          </div>
+          <div class="fg" style="margin:0"><label>الكمية (م²)</label>
+            <input type="number" id="satis-miktar" placeholder="0.00" min="0.01" step="0.01">
+          </div>
+          <button class="btn btn-success" onclick="satisSec()" style="height:40px">حفظ</button>
+        </div>
+        <div class="satis-info-card" id="satis-info"></div>
+      </div>
+      <div id="satis-msg"></div>
+    </div>
+
+    <!-- GEÇMİŞ -->
+    <div id="tab-gecmis" style="display:none">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+        <h2 style="font-size:15px;font-weight:600;color:#2d3748">سجل المبيعات</h2>
+        <div style="display:flex;gap:8px">
+          <select id="filter-urun" onchange="loadGecmis()" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:7px;font-size:13px;background:#fff">
+            <option value="">جميع المنتجات</option>
+          </select>
+          <button class="btn btn-outline btn-sm" onclick="loadGecmis()">🔄</button>
+        </div>
+      </div>
+      <div class="table-wrap"><div id="gecmis-list"></div></div>
+    </div>
+
+    <!-- KULLANICILAR -->
+    <div id="tab-kullanicilar" style="display:none">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <h2 style="font-size:15px;font-weight:600;color:#2d3748">إدارة المستخدمين</h2>
+        <button class="btn btn-primary" onclick="openUserModal()">+ دعوة مستخدم</button>
+      </div>
+      <div id="users-list"></div>
+    </div>
+  </main>
+</div>
+
+<!-- PRODUCT MODAL -->
+<div class="modal-bg" id="modal">
+  <div class="modal">
+    <h3 id="modal-title">إضافة منتج جديد</h3>
+    <div class="fg">
+      <label>صورة المنتج</label>
+      <div class="img-upload-area">
+        <input type="file" id="f-img" accept="image/*" onchange="previewImg(event)">
+        <div id="upload-ph"><div class="img-upload-icon">🖼️</div><div class="img-upload-txt">انقر لرفع صورة<br><small style="color:#a0aec0">JPG · PNG · WEBP</small></div></div>
+        <img id="img-preview" class="img-preview" style="display:none" alt="">
+      </div>
+    </div>
+    <div class="fg"><label>اسم المنتج</label><input type="text" id="f-ad" placeholder="مثال: بلاط أبيض 60×60"></div>
+    <div class="form-row">
+      <div class="fg"><label>السعر (ر.س/م²)</label><input type="number" id="f-fiyat" placeholder="0.00" min="0" step="0.01"></div>
+      <div class="fg"><label>المخزون (م²)</label><input type="number" id="f-stok" placeholder="0.00" min="0" step="0.01"></div>
+    </div>
+    <div class="fg"><label>حد تنبيه المخزون المنخفض (م²)</label><input type="number" id="f-esik" placeholder="مثال: 20" min="0" step="0.01"></div>
+    <div class="modal-btns">
+      <button class="btn btn-primary" onclick="urunKaydet()" id="save-btn">حفظ</button>
+      <button class="btn btn-outline" onclick="closeModal()">إلغاء</button>
+    </div>
+  </div>
+</div>
+
+<!-- USER MODAL -->
+<div class="modal-bg" id="user-modal">
+  <div class="modal">
+    <h3>دعوة مستخدم جديد</h3>
+    <div class="fg"><label>الاسم الكامل</label><input type="text" id="u-name" placeholder="اسم المستخدم"></div>
+    <div class="fg"><label>البريد الإلكتروني</label><input type="email" id="u-email" placeholder="example@email.com" dir="ltr"></div>
+    <div class="fg"><label>كلمة المرور</label><input type="password" id="u-pass" placeholder="كلمة مرور مؤقتة" dir="ltr"></div>
+    <div class="fg"><label>الصلاحية</label>
+      <select id="u-role"><option value="staff">موظف (staff)</option><option value="admin">مدير (admin)</option></select>
+    </div>
+    <div class="modal-btns">
+      <button class="btn btn-primary" onclick="createUser()">إنشاء حساب</button>
+      <button class="btn btn-outline" onclick="closeUserModal()">إلغاء</button>
+    </div>
+    <div id="user-modal-msg" style="margin-top:10px;font-size:13px"></div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════
+// CONFIG
+// ══════════════════════════════════════
+let SB_URL='', SB_KEY='', currentUser=null, currentProfile=null;
+let allUrunler=[], currentView='grid', editId=null, currentImgData=null;
+
+function getHeaders(token){
+  return {
+    'apikey': SB_KEY,
+    'Authorization': `Bearer ${token||SB_KEY}`,
+    'Content-Type': 'application/json',
+    'Prefer': 'return=representation'
+  };
+}
+
+async function sbGet(path, token){
+  const r=await fetch(SB_URL+path,{headers:getHeaders(token)});
+  if(!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+async function sbPost(path,body,token){
+  const r=await fetch(SB_URL+path,{method:'POST',headers:getHeaders(token),body:JSON.stringify(body)});
+  const txt=await r.text();
+  if(!r.ok) throw new Error(txt);
+  return txt?JSON.parse(txt):null;
+}
+async function sbPatch(path,body,token){
+  const r=await fetch(SB_URL+path,{method:'PATCH',headers:{...getHeaders(token),'Prefer':'return=representation'},body:JSON.stringify(body)});
+  const txt=await r.text();
+  if(!r.ok) throw new Error(txt);
+  return txt?JSON.parse(txt):null;
+}
+async function sbDelete(path,token){
+  const r=await fetch(SB_URL+path,{method:'DELETE',headers:getHeaders(token)});
+  if(!r.ok) throw new Error(await r.text());
+}
+
+// ══════════════════════════════════════
+// SETUP
+// ══════════════════════════════════════
+function saveSetup(){
+  SB_URL=document.getElementById('sb-url').value.trim().replace(/\/$/,'');
+  SB_KEY=document.getElementById('sb-key').value.trim();
+  if(!SB_URL||!SB_KEY){alert('الرجاء إدخال جميع البيانات!');return;}
+  localStorage.setItem('sb_url',SB_URL);
+  localStorage.setItem('sb_key',SB_KEY);
+  document.getElementById('setup-screen').style.display='none';
+  document.getElementById('login-screen').classList.add('show');
+}
+function resetSetup(){
+  localStorage.removeItem('sb_url');localStorage.removeItem('sb_key');
+  localStorage.removeItem('sb_token');localStorage.removeItem('sb_refresh');
+  location.reload();
+}
+function loadSetup(){
+  SB_URL=localStorage.getItem('sb_url')||'';
+  SB_KEY=localStorage.getItem('sb_key')||'';
+  if(SB_URL&&SB_KEY){
+    document.getElementById('setup-screen').style.display='none';
+    const token=localStorage.getItem('sb_token');
+    if(token) tryAutoLogin(token);
+    else document.getElementById('login-screen').classList.add('show');
+  } else {
+    document.getElementById('sb-url').value=SB_URL;
+    document.getElementById('sb-key').value=SB_KEY;
+  }
+}
+
+// ══════════════════════════════════════
+// AUTH
+// ══════════════════════════════════════
+async function tryAutoLogin(token){
+  try{
+    const r=await fetch(SB_URL+'/auth/v1/user',{headers:{'apikey':SB_KEY,'Authorization':'Bearer '+token}});
+    if(r.ok){const u=await r.json();await afterLogin(u,token);}
+    else{document.getElementById('login-screen').classList.add('show');}
+  }catch{document.getElementById('login-screen').classList.add('show');}
+}
+
+function switchLoginTab(t){
+  document.getElementById('login-form').style.display=t==='login'?'block':'none';
+  document.getElementById('register-form').style.display=t==='register'?'block':'none';
+  document.querySelectorAll('.login-tab').forEach((b,i)=>b.classList.toggle('active',['login','register'][i]===t));
+  document.getElementById('login-msg').className='';document.getElementById('login-msg').textContent='';
+}
+
+async function doLogin(){
+  const email=document.getElementById('l-email').value.trim();
+  const pass=document.getElementById('l-pass').value;
+  const btn=document.getElementById('login-btn');
+  if(!email||!pass){showLoginMsg('الرجاء إدخال البريد وكلمة المرور','err');return;}
+  btn.disabled=true;btn.innerHTML='جاري الدخول...<span class="spin"></span>';
+  try{
+    const r=await fetch(SB_URL+'/auth/v1/token?grant_type=password',{
+      method:'POST',headers:{'apikey':SB_KEY,'Content-Type':'application/json'},
+      body:JSON.stringify({email,password:pass})
+    });
+    const d=await r.json();
+    if(!r.ok) throw new Error(d.error_description||d.msg||'خطأ في تسجيل الدخول');
+    localStorage.setItem('sb_token',d.access_token);
+    localStorage.setItem('sb_refresh',d.refresh_token);
+    await afterLogin(d.user,d.access_token);
+  }catch(e){showLoginMsg(e.message,'err');}
+  btn.disabled=false;btn.innerHTML='تسجيل الدخول';
+}
+
+async function doRegister(){
+  const name=document.getElementById('r-name').value.trim();
+  const email=document.getElementById('r-email').value.trim();
+  const pass=document.getElementById('r-pass').value;
+  const btn=document.getElementById('register-btn');
+  if(!name||!email||!pass){showLoginMsg('الرجاء إدخال جميع الحقول','err');return;}
+  if(pass.length<8){showLoginMsg('كلمة المرور يجب أن تكون 8 أحرف على الأقل','err');return;}
+  btn.disabled=true;btn.innerHTML='جاري الإنشاء...<span class="spin"></span>';
+  try{
+    const r=await fetch(SB_URL+'/auth/v1/signup',{
+      method:'POST',headers:{'apikey':SB_KEY,'Content-Type':'application/json'},
+      body:JSON.stringify({email,password:pass,data:{full_name:name}})
+    });
+    const d=await r.json();
+    if(!r.ok) throw new Error(d.error_description||d.msg||'خطأ في إنشاء الحساب');
+    if(d.access_token){
+      // Save profile
+      try{await sbPost('/rest/v1/profiles',{id:d.user.id,full_name:name,role:'staff'},d.access_token);}catch{}
+      localStorage.setItem('sb_token',d.access_token);
+      await afterLogin(d.user,d.access_token);
+    } else {
+      showLoginMsg('✅ تم إنشاء الحساب! تحقق من بريدك الإلكتروني للتفعيل','ok');
+    }
+  }catch(e){showLoginMsg(e.message,'err');}
+  btn.disabled=false;btn.innerHTML='إنشاء حساب';
+}
+
+async function afterLogin(user,token){
+  currentUser={...user,token};
+  // Load profile
+  try{
+    const profiles=await sbGet(`/rest/v1/profiles?id=eq.${user.id}`,token);
+    if(profiles.length>0) currentProfile=profiles[0];
+    else{
+      // Create profile if not exists
+      const name=user.user_metadata?.full_name||user.email.split('@')[0];
+      try{await sbPost('/rest/v1/profiles',{id:user.id,full_name:name,role:'staff'},token);}catch{}
+      currentProfile={id:user.id,full_name:name,role:'staff'};
+    }
+  }catch{currentProfile={id:user.id,full_name:user.email,role:'staff'};}
+
+  document.getElementById('login-screen').classList.remove('show');
+  document.getElementById('app').classList.add('show');
+  document.getElementById('header-date').textContent=new Date().toLocaleDateString('ar-SA',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  document.getElementById('user-name-display').textContent=currentProfile.full_name||user.email;
+  document.getElementById('user-role-badge').innerHTML=currentProfile.role==='admin'?'<span class="badge badge-admin">مدير</span>':'<span class="badge badge-staff">موظف</span>';
+  if(currentProfile.role==='admin') document.getElementById('admin-tab').style.display='';
+  loadDashboard();
+}
+
+function showLoginMsg(msg,type){
+  const el=document.getElementById('login-msg');
+  el.textContent=msg; el.className=type;
+}
+
+async function doLogout(){
+  try{await fetch(SB_URL+'/auth/v1/logout',{method:'POST',headers:{'apikey':SB_KEY,'Authorization':'Bearer '+currentUser.token}});}catch{}
+  localStorage.removeItem('sb_token');localStorage.removeItem('sb_refresh');
+  currentUser=null;currentProfile=null;
+  document.getElementById('app').classList.remove('show');
+  document.getElementById('login-screen').classList.add('show');
+  document.getElementById('l-email').value='';document.getElementById('l-pass').value='';
+}
+
+// ══════════════════════════════════════
+// NAVIGATION
+// ══════════════════════════════════════
+function goTab(t){
+  ['dashboard','urunler','satis','gecmis','kullanicilar'].forEach(x=>document.getElementById('tab-'+x).style.display=x===t?'block':'none');
+  document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active'));
+  event.target.classList.add('active');
+  if(t==='dashboard')loadDashboard();
+  if(t==='urunler')loadUrunler();
+  if(t==='satis')loadSatis();
+  if(t==='gecmis')loadGecmis();
+  if(t==='kullanicilar')loadUsers();
+}
+
+function setView(v){
+  currentView=v;
+  document.getElementById('urun-grid').style.display=v==='grid'?'grid':'none';
+  document.getElementById('urun-list-wrap').style.display=v==='list'?'block':'none';
+  document.getElementById('view-grid').className='btn btn-sm '+(v==='grid'?'btn-primary':'btn-outline');
+  document.getElementById('view-list').className='btn btn-sm '+(v==='list'?'btn-primary':'btn-outline');
+}
+
+// ══════════════════════════════════════
+// HELPERS
+// ══════════════════════════════════════
+function badge(stok,esik){
+  if(stok<=0) return '<span class="badge badge-critical">❌ نفد</span>';
+  if(stok<=esik) return '<span class="badge badge-low">⚠️ منخفض</span>';
+  return '<span class="badge badge-ok">✅ متوفر</span>';
+}
+function imgEl(img,cls){
+  return img?`<img src="${img}" class="${cls}" alt="">`:`<div class="${cls.includes('product')?'product-img-ph':'td-ph'}">🧱</div>`;
+}
+function fmt(n){return Number(n).toLocaleString('ar-SA',{maximumFractionDigits:2});}
+
+// ══════════════════════════════════════
+// DASHBOARD
+// ══════════════════════════════════════
+async function loadDashboard(){
+  try{
+    const data=await sbGet('/rest/v1/urunler?select=*&order=stok.asc',currentUser.token);
+    const sales=await sbGet('/rest/v1/satislar?select=tutar',currentUser.token);
+    allUrunler=data;
+    const tv=data.reduce((a,u)=>a+u.stok*u.fiyat,0);
+    const tm=data.reduce((a,u)=>a+u.stok,0);
+    const ts=sales.reduce((a,s)=>a+s.tutar,0);
+    const low=data.filter(u=>u.stok<=u.esik&&u.stok>0).length;
+    const out=data.filter(u=>u.stok<=0).length;
+
+    document.getElementById('stats').innerHTML=`
+      <div class="stat-card"><div class="stat-label">قيمة المخزون</div><div class="stat-value">${fmt(tv)} ر.س</div><div class="stat-sub">${data.length} نوع</div></div>
+      <div class="stat-card green"><div class="stat-label">إجمالي المبيعات</div><div class="stat-value">${fmt(ts)} ر.س</div><div class="stat-sub">${sales.length} عملية</div></div>
+      <div class="stat-card orange"><div class="stat-label">المخزون الكلي</div><div class="stat-value">${Number(tm).toFixed(1)} م²</div><div class="stat-sub">إجمالي المساحة</div></div>
+      <div class="stat-card red"><div class="stat-label">منتجات حرجة</div><div class="stat-value">${low+out}</div><div class="stat-sub">${out} نفد · ${low} منخفض</div></div>`;
+
+    const alts=data.filter(u=>u.stok<=u.esik);
+    document.getElementById('alerts').innerHTML=alts.map(u=>`
+      <div class="alert">${u.img?`<img src="${u.img}" style="width:32px;height:32px;border-radius:5px;object-fit:cover;flex-shrink:0" alt="">`:''}<span><b>${u.ad}</b>: ${u.stok<=0?'نفد المخزون تماماً!':'مخزون منخفض — المتبقي: <b>'+Number(u.stok).toFixed(1)+' م²</b>'}</span></div>`).join('');
+
+    document.getElementById('dashboard-table').innerHTML=data.length
+      ?data.map(u=>`<tr>
+        <td>${u.img?`<img src="${u.img}" class="td-img" alt="">`:'<div class="td-ph">🧱</div>'}</td>
+        <td><b>${u.ad}</b></td>
+        <td>${fmt(u.fiyat)} ر.س</td>
+        <td style="font-weight:600;color:${u.stok<=u.esik?'#e53e3e':'#2d3748'}">${Number(u.stok).toFixed(2)} م²</td>
+        <td>${badge(u.stok,u.esik)}</td></tr>`).join('')
+      :'<tr><td colspan="5" class="empty">لا توجد منتجات.</td></tr>';
+  }catch(e){document.getElementById('dashboard-table').innerHTML=`<tr><td colspan="5" class="empty">❌ خطأ: ${e.message}</td></tr>`;}
+}
+
+// ══════════════════════════════════════
+// PRODUCTS
+// ══════════════════════════════════════
+async function loadUrunler(){
+  try{
+    const data=await sbGet('/rest/v1/urunler?select=*&order=created_at.desc',currentUser.token);
+    allUrunler=data;
+    renderUrunGrid(data);
+    renderUrunList(data);
+  }catch(e){document.getElementById('urun-grid').innerHTML=`<div class="empty">❌ ${e.message}</div>`;}
+}
+
+function renderUrunGrid(data){
+  document.getElementById('urun-grid').innerHTML=data.length
+    ?data.map(u=>`
+      <div class="product-card ${u.stok<=0?'critical':u.stok<=u.esik?'low':''}">
+        ${u.img?`<img src="${u.img}" class="product-img" alt="${u.ad}">`:'<div class="product-img-ph">🧱</div>'}
+        <div class="product-info">
+          ${badge(u.stok,u.esik)}
+          <div class="product-name">${u.ad}</div>
+          <div class="product-price">${fmt(u.fiyat)} ر.س / م²</div>
+          <div class="product-stock" style="color:${u.stok<=u.esik?'#e53e3e':'#276749'}">${Number(u.stok).toFixed(2)} م² متبقي</div>
+          <div class="product-actions">
+            <button class="btn btn-edit btn-sm" onclick="openEdit('${u.id}')">✏️ تعديل</button>
+            <button class="btn btn-danger btn-sm" onclick="urunSil('${u.id}')">🗑️</button>
+          </div>
+        </div>
+      </div>`).join('')
+    :'<div class="empty" style="grid-column:1/-1">لا توجد منتجات. أضف منتجاً جديداً.</div>';
+}
+
+function renderUrunList(data){
+  document.getElementById('urun-table').innerHTML=data.length
+    ?data.map(u=>`<tr>
+      <td>${u.img?`<img src="${u.img}" class="td-img" alt="">`:'<div class="td-ph">🧱</div>'}</td>
+      <td><b>${u.ad}</b></td>
+      <td>${fmt(u.fiyat)} ر.س</td>
+      <td style="font-weight:600;color:${u.stok<=u.esik?'#e53e3e':'#276749'}">${Number(u.stok).toFixed(2)} م²</td>
+      <td>${u.esik} م²</td>
+      <td>${badge(u.stok,u.esik)}</td>
+      <td><div style="display:flex;gap:4px">
+        <button class="btn btn-edit btn-sm" onclick="openEdit('${u.id}')">✏️</button>
+        <button class="btn btn-danger btn-sm" onclick="urunSil('${u.id}')">🗑️</button>
+      </div></td></tr>`).join('')
+    :'<tr><td colspan="7" class="empty">لا توجد منتجات.</td></tr>';
+}
+
+// ══════════════════════════════════════
+// SALES
+// ══════════════════════════════════════
+async function loadSatis(){
+  if(allUrunler.length===0){try{allUrunler=await sbGet('/rest/v1/urunler?select=*',currentUser.token);}catch{}}
+  const sel=document.getElementById('satis-urun');
+  sel.innerHTML='<option value="">-- اختر منتجاً --</option>'+
+    allUrunler.filter(u=>u.stok>0).map(u=>`<option value="${u.id}">${u.ad} — ${Number(u.stok).toFixed(1)} م²</option>`).join('');
+  satisUrunSec();
+}
+
+function satisUrunSec(){
+  const id=document.getElementById('satis-urun').value;
+  const info=document.getElementById('satis-info');
+  if(!id){info.classList.remove('show');return;}
+  const u=allUrunler.find(x=>x.id===id);
+  if(!u){info.classList.remove('show');return;}
+  info.classList.add('show');
+  info.innerHTML=`${u.img?`<img src="${u.img}" style="width:56px;height:56px;border-radius:7px;object-fit:cover;flex-shrink:0" alt="">`:''}<div><div style="font-weight:600;font-size:14px;color:#2d3748;margin-bottom:3px">${u.ad}</div><div style="font-size:12px;color:#3182ce">السعر: <b>${fmt(u.fiyat)} ر.س/م²</b></div><div style="font-size:12px;color:${u.stok<=u.esik?'#e53e3e':'#276749'}">المخزون: <b>${Number(u.stok).toFixed(2)} م²</b></div></div>`;
+}
+
+async function satisSec(){
+  const id=document.getElementById('satis-urun').value;
+  const mik=parseFloat(document.getElementById('satis-miktar').value);
+  const msg=document.getElementById('satis-msg');
+  if(!id){showMsg(msg,'⚠️ الرجاء اختيار منتج.','#feebc8','#744210');return;}
+  const u=allUrunler.find(x=>x.id===id);
+  if(!u) return;
+  if(!mik||mik<=0){showMsg(msg,'⚠️ الرجاء إدخال كمية صحيحة.','#feebc8','#744210');return;}
+  if(mik>u.stok){showMsg(msg,`❌ المخزون غير كافٍ! المتوفر: ${Number(u.stok).toFixed(2)} م²`,'#fed7d7','#742a2a');return;}
+  try{
+    const newStok=Math.round((u.stok-mik)*100)/100;
+    const tutar=mik*u.fiyat;
+    // Update stock
+    await sbPatch(`/rest/v1/urunler?id=eq.${u.id}`,{stok:newStok},currentUser.token);
+    // Record sale
+    await sbPost('/rest/v1/satislar',{
+      urun_id:u.id, urun_ad:u.ad, urun_img:u.img||null,
+      miktar:mik, tutar, kullanici_id:currentUser.id,
+      kullanici_ad:currentProfile.full_name
+    },currentUser.token);
+    u.stok=newStok;
+    document.getElementById('satis-miktar').value='';
+    loadSatis();
+    showMsg(msg,`✅ تم تسجيل البيع! ${mik.toFixed(2)} م² × ${fmt(u.fiyat)} ر.س = <b>${fmt(tutar)} ر.س</b>`,'#c6f6d5','#22543d');
+    if(u.stok<=u.esik) setTimeout(()=>showMsg(msg,`⚠️ تحذير: مخزون "${u.ad}" منخفض! المتبقي: ${u.stok.toFixed(2)} م²`,'#feebc8','#744210'),1200);
+  }catch(e){showMsg(msg,'❌ خطأ: '+e.message,'#fed7d7','#742a2a');}
+}
+
+// ══════════════════════════════════════
+// HISTORY
+// ══════════════════════════════════════
+async function loadGecmis(){
+  const filterUrun=document.getElementById('filter-urun').value;
+  let url='/rest/v1/satislar?select=*&order=created_at.desc';
+  if(filterUrun) url+=`&urun_id=eq.${filterUrun}`;
+
+  // Populate filter
+  const sel=document.getElementById('filter-urun');
+  const curr=sel.value;
+  if(allUrunler.length===0) try{allUrunler=await sbGet('/rest/v1/urunler?select=*',currentUser.token);}catch{}
+  sel.innerHTML='<option value="">جميع المنتجات</option>'+allUrunler.map(u=>`<option value="${u.id}">${u.ad}</option>`).join('');
+  sel.value=curr;
+
+  const el=document.getElementById('gecmis-list');
+  el.innerHTML='<div class="loading">⏳ جاري التحميل...</div>';
+  try{
+    const data=await sbGet(url,currentUser.token);
+    el.innerHTML=data.length
+      ?data.map(g=>`
+        <div class="gecmis-item">
+          ${g.urun_img?`<img src="${g.urun_img}" class="g-img" alt="">`:'<div class="g-ph">🧱</div>'}
+          <div class="gecmis-info">
+            <div class="gecmis-name">${g.urun_ad}</div>
+            <div class="gecmis-meta">${new Date(g.created_at).toLocaleString('ar-SA')} · ${g.kullanici_ad||'—'}</div>
+          </div>
+          <div class="gecmis-amount">
+            <div class="gecmis-m2">-${Number(g.miktar).toFixed(2)} م²</div>
+            <div class="gecmis-fiyat">+${fmt(g.tutar)} ر.س</div>
+          </div>
+        </div>`).join('')
+      :'<div class="empty">لا توجد مبيعات مسجلة بعد.</div>';
+  }catch(e){el.innerHTML=`<div class="empty">❌ ${e.message}</div>`;}
+}
+
+// ══════════════════════════════════════
+// USERS (Admin only)
+// ══════════════════════════════════════
+async function loadUsers(){
+  const el=document.getElementById('users-list');
+  el.innerHTML='<div class="loading">⏳ جاري التحميل...</div>';
+  try{
+    const data=await sbGet('/rest/v1/profiles?select=*&order=created_at.asc',currentUser.token);
+    el.innerHTML=data.length
+      ?data.map(u=>`
+        <div class="user-card">
+          <div class="user-avatar">${(u.full_name||'?')[0].toUpperCase()}</div>
+          <div class="user-info">
+            <div class="user-name">${u.full_name||'بدون اسم'}</div>
+          </div>
+          <span class="badge ${u.role==='admin'?'badge-admin':'badge-staff'}">${u.role==='admin'?'مدير':'موظف'}</span>
+          ${u.id!==currentUser.id?`<button class="btn btn-outline btn-sm" onclick="toggleRole('${u.id}','${u.role}')">${u.role==='admin'?'تحويل لموظف':'ترقية لمدير'}</button>`:'<span style="font-size:12px;color:#a0aec0">أنت</span>'}
+        </div>`).join('')
+      :'<div class="empty">لا يوجد مستخدمون.</div>';
+  }catch(e){el.innerHTML=`<div class="empty">❌ ${e.message}</div>`;}
+}
+
+async function toggleRole(uid,currentRole){
+  const newRole=currentRole==='admin'?'staff':'admin';
+  try{
+    await sbPatch(`/rest/v1/profiles?id=eq.${uid}`,{role:newRole},currentUser.token);
+    loadUsers();
+  }catch(e){alert('خطأ: '+e.message);}
+}
+
+function openUserModal(){document.getElementById('user-modal').classList.add('open');}
+function closeUserModal(){document.getElementById('user-modal').classList.remove('open');}
+
+async function createUser(){
+  const name=document.getElementById('u-name').value.trim();
+  const email=document.getElementById('u-email').value.trim();
+  const pass=document.getElementById('u-pass').value;
+  const role=document.getElementById('u-role').value;
+  const msg=document.getElementById('user-modal-msg');
+  if(!name||!email||!pass){msg.innerHTML='<span style="color:#e53e3e">الرجاء ملء جميع الحقول</span>';return;}
+  try{
+    const r=await fetch(SB_URL+'/auth/v1/signup',{
+      method:'POST',headers:{'apikey':SB_KEY,'Content-Type':'application/json'},
+      body:JSON.stringify({email,password:pass,data:{full_name:name}})
+    });
+    const d=await r.json();
+    if(!r.ok) throw new Error(d.error_description||'خطأ');
+    if(d.user){
+      try{await sbPost('/rest/v1/profiles',{id:d.user.id,full_name:name,role},currentUser.token);}catch{}
+    }
+    msg.innerHTML='<span style="color:#276749">✅ تم إنشاء الحساب بنجاح!</span>';
+    setTimeout(()=>{closeUserModal();loadUsers();},1500);
+  }catch(e){msg.innerHTML=`<span style="color:#e53e3e">❌ ${e.message}</span>`;}
+}
+
+// ══════════════════════════════════════
+// PRODUCT MODAL
+// ══════════════════════════════════════
+function openModal(){
+  editId=null;currentImgData=null;
+  document.getElementById('modal-title').textContent='إضافة منتج جديد';
+  ['f-ad','f-fiyat','f-stok','f-esik'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('img-preview').style.display='none';
+  document.getElementById('upload-ph').style.display='block';
+  document.getElementById('f-img').value='';
+  document.getElementById('modal').classList.add('open');
+}
+
+function openEdit(id){
+  const u=allUrunler.find(x=>x.id===id);
+  if(!u) return;
+  editId=id;currentImgData=u.img||null;
+  document.getElementById('modal-title').textContent='تعديل المنتج';
+  document.getElementById('f-ad').value=u.ad;
+  document.getElementById('f-fiyat').value=u.fiyat;
+  document.getElementById('f-stok').value=u.stok;
+  document.getElementById('f-esik').value=u.esik;
+  if(u.img){
+    document.getElementById('img-preview').src=u.img;
+    document.getElementById('img-preview').style.display='block';
+    document.getElementById('upload-ph').style.display='none';
+  } else {
+    document.getElementById('img-preview').style.display='none';
+    document.getElementById('upload-ph').style.display='block';
+  }
+  document.getElementById('f-img').value='';
+  document.getElementById('modal').classList.add('open');
+}
+
+function closeModal(){document.getElementById('modal').classList.remove('open');}
+
+function previewImg(e){
+  const file=e.target.files[0];
+  if(!file) return;
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    currentImgData=ev.target.result;
+    document.getElementById('img-preview').src=currentImgData;
+    document.getElementById('img-preview').style.display='block';
+    document.getElementById('upload-ph').style.display='none';
+  };
+  reader.readAsDataURL(file);
+}
+
+async function urunKaydet(){
+  const ad=document.getElementById('f-ad').value.trim();
+  const fiyat=parseFloat(document.getElementById('f-fiyat').value);
+  const stok=parseFloat(document.getElementById('f-stok').value);
+  const esik=parseFloat(document.getElementById('f-esik').value)||20;
+  if(!ad||isNaN(fiyat)||isNaN(stok)){alert('الرجاء ملء جميع الحقول!');return;}
+  const btn=document.getElementById('save-btn');
+  btn.disabled=true;btn.innerHTML='جاري الحفظ...<span class="spin"></span>';
+  try{
+    const body={ad,fiyat,stok,esik,img:currentImgData||null};
+    if(editId) await sbPatch(`/rest/v1/urunler?id=eq.${editId}`,body,currentUser.token);
+    else await sbPost('/rest/v1/urunler',body,currentUser.token);
+    closeModal();
+    loadUrunler();
+  }catch(e){alert('خطأ: '+e.message);}
+  btn.disabled=false;btn.innerHTML='حفظ';
+}
+
+async function urunSil(id){
+  if(!confirm('هل أنت متأكد من حذف هذا المنتج؟')) return;
+  try{
+    await sbDelete(`/rest/v1/urunler?id=eq.${id}`,currentUser.token);
+    loadUrunler();
+  }catch(e){alert('خطأ: '+e.message);}
+}
+
+function showMsg(el,html,bg,color){
+  el.innerHTML=`<div style="padding:12px 14px;background:${bg};color:${color};border-radius:9px;font-size:13px;margin-top:10px">${html}</div>`;
+  setTimeout(()=>el.innerHTML='',6000);
+}
+
+// ══════════════════════════════════════
+// INIT
+// ══════════════════════════════════════
+loadSetup();
+</script>
+</body>
+</html>
